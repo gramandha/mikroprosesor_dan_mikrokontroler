@@ -1,5 +1,8 @@
 # Penjelasan Arsitektur CPU 8-bit
 
+<img width="982" height="597" alt="image" src="https://github.com/user-attachments/assets/8c3c1094-bc5b-45f2-bc31-827a9eaf72c4" />
+
+
 Gambar yang dilampirkan merupakan **diagram blok arsitektur internal CPU 8-bit**, dengan **Data Bus 8-bit** dan **Address Bus 16-bit**. Arsitektur ini sangat mirip dengan keluarga **Z80**, karena terdapat register `IX`, `IY`, `PC`, `SP`, `A`, `F`, `B`, `C`, `D`, `E`, dan `H`, `L`, serta sistem interrupt.
 
 Secara sederhana:
