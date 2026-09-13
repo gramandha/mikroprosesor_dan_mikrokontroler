@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulasi Register F (Flags) Z80</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:24px}
+.container{max-width:1050px;margin:auto;background:white;padding:24px;border-radius:14px;box-shadow:0 4px 18px #0002}
+h1{margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{border:1px solid #ddd;border-radius:10px;padding:16px}
+label{display:block;margin:8px 0 4px;font-weight:bold}
+input,select,button{font-size:16px;padding:9px;border:1px solid #bbb;border-radius:7px}
+input{width:120px}button{cursor:pointer;margin-top:12px}
+.bits{display:flex;gap:5px;margin:15px 0}.bit{width:70px;text-align:center;padding:9px 3px;border-radius:7px;background:#ddd}.bit.on{background:#8ed081}
+.bit small{display:block;font-size:11px}.value{font-family:monospace;font-size:22px}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#eee}
+pre{background:#111;color:#eee;padding:14px;border-radius:8px;overflow:auto}
+.note{background:#fff7d6;padding:12px;border-left:4px solid #e2b400;border-radius:5px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.bit{width:48px}}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Simulasi Register F (Flags) – Z80</h1>
+<p>Simulasi edukatif register <b>F</b> pada Z80. Fokus pada flag <b>S, Z, H, P/V, N, C</b>.</p>
+
+<div class="grid">
+<div class="card">
+<h2>1. Operasi ALU</h2>
+<label>Instruksi</label>
+<select id="op">
+<option>ADD A,n</option><option>ADC A,n</option>
+<option>SUB n</option><option>SBC A,n</option><option>CP n</option>
+<option>INC A</option><option>DEC A</option>
+<option>AND n</option><option>OR n</option><option>XOR n</option>
+<option>SCF</option><option>CCF</option>
+</select>
+<label>A (0–255)</label><input id="a" type="number" min="0" max="255" value="127">
+<label>Operand n (0–255)</label><input id="n" type="number" min="0" max="255" value="1">
+<label>Carry sebelum operasi (C)</label>
+<select id="cin"><option value="0">0</option><option value="1">1</option></select>
+<br><button onclick="simulate()">Jalankan</button>
+</div>
+
+<div class="card">
+<h2>2. Hasil Register</h2>
+<div class="value">A = <span id="ares">00</span>H = <span id="adec">0</span></div>
+<div class="value">F = <span id="fhex">00</span>H = <span id="fbin">00000000</span>b</div>
+<div id="result"></div>
+</div>
+</div>
+
+<div class="card" style="margin-top:18px">
+<h2>3. Isi Register F</h2>
+<div class="bits" id="bits"></div>
+<table>
+<tr><th>Bit</th><th>Flag</th><th>Nama</th><th>Makna</th></tr>
+<tr><td>7</td><td>S</td><td>Sign</td><td>1 jika bit-7 hasil = 1 (hasil bertanda negatif)</td></tr>
+<tr><td>6</td><td>Z</td><td>Zero</td><td>1 jika hasil = 00H</td></tr>
+<tr><td>5</td><td>5</td><td>Undocumented</td><td>Bit salinan/tergantung hasil pada banyak instruksi</td></tr>
+<tr><td>4</td><td>H</td><td>Half Carry</td><td>Carry/borrow antara bit 3 dan bit 4</td></tr>
+<tr><td>3</td><td>3</td><td>Undocumented</td><td>Bit salinan/tergantung hasil pada banyak instruksi</td></tr>
+<tr><td>2</td><td>P/V</td><td>Parity / Overflow</td><td>Paritas untuk logika; overflow signed untuk aritmetika</td></tr>
+<tr><td>1</td><td>N</td><td>Add/Subtract</td><td>1 untuk operasi pengurangan</td></tr>
+<tr><td>0</td><td>C</td><td>Carry</td><td>Carry atau borrow dari operasi aritmetika</td></tr>
+</table>
+</div>
+
+<div class="card" style="margin-top:18px">
+<h2>4. Contoh penting</h2>
+<pre>
+A = 7FH
+ADD A,01H
+
+7FH + 01H = 80H
+S = 1       → bit-7 hasil = 1
+Z = 0       → hasil bukan 00H
+H = 1       → F + 1 melewati bit 3
+P/V = 1     → overflow signed (+127 menjadi -128)
+N = 0       → penjumlahan
+C = 0       → tidak ada carry keluar bit 7
+
+F = 94H (bit 5/3 mengikuti hasil pada implementasi ini)
+</pre>
+<div class="note">
+Catatan: Z80 membedakan <b>overflow signed (P/V)</b> dari <b>carry unsigned (C)</b>.
+Contoh 7FH + 01H menghasilkan overflow, tetapi tidak menghasilkan carry bit-7.
+</div>
+</div>
+</div>
+
+<script>
+function parity(v){let c=0;for(let i=0;i<8;i++)c+=(v>>i)&1;return c%2===0?1:0}
+function hx(v){return v.toString(16).toUpperCase().padStart(2,'0')}
+function clamp(v){return ((v%256)+256)%256}
+function arithFlags(a,b,r,sub,carryIn){
+  let rr=clamp(r), raw=r;
+  let S=(rr>>7)&1, Z=rr===0?1:0;
+  let H=sub ? (((a&0x0F)-(b&0x0F)-carryIn)<0?1:0)
+            : (((a&0x0F)+(b&0x0F)+carryIn)>15?1:0);
+  let C=sub ? (raw<0?1:0) : (raw>255?1:0);
+  let ov=sub ? (((a^b)&(a^rr)&0x80)?1:0)
+             : ((~(a^b)&(a^rr)&0x80)?1:0);
+  let N=sub?1:0;
+  return {rr,S,Z,H,PV:ov,N,C}
+}
+function logicFlags(rr,kind){
+  return {rr,S:(rr>>7)&1,Z:rr===0?1:0,H:kind==='AND'?1:0,PV:parity(rr),N:0,C:0}
+}
+function makeF(x, flags){
+  // Bits 5 and 3 are modeled as copies of result bits for common Z80 8-bit ALU operations.
+  return (flags.S<<7)|(flags.Z<<6)|(((x>>5)&1)<<5)|(flags.H<<4)|(((x>>3)&1)<<3)|(flags.PV<<2)|(flags.N<<1)|flags.C
+}
+function simulate(){
+  let op=document.getElementById('op').value;
+  let a=clamp(parseInt(document.getElementById('a').value)||0);
+  let n=clamp(parseInt(document.getElementById('n').value)||0);
+  let cin=parseInt(document.getElementById('cin').value);
+  let rr=a, f={S:0,Z:0,H:0,PV:0,N:0,C:0}, text='';
+  if(op==='ADD A,n'){let q=arithFlags(a,n,a+n,0,0);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C:f.C}=q);text=`${hx(a)}H + ${hx(n)}H = ${hx(rr)}H`}
+  else if(op==='ADC A,n'){let q=arithFlags(a,n,a+n+cin,0,cin);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C:f.C}=q);text=`${hx(a)}H + ${hx(n)}H + C(${cin}) = ${hx(rr)}H`}
+  else if(op==='SUB n'){let q=arithFlags(a,n,a-n,1,0);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C:f.C}=q);text=`${hx(a)}H - ${hx(n)}H = ${hx(rr)}H`}
+  else if(op==='SBC A,n'){let q=arithFlags(a,n,a-n-cin,1,cin);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C:f.C}=q);text=`${hx(a)}H - ${hx(n)}H - C(${cin}) = ${hx(rr)}H`}
+  else if(op==='CP n'){let q=arithFlags(a,n,a-n,1,0);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C:f.C}=q);rr=a;text=`CP ${hx(n)}H: A tetap ${hx(a)}H; perbandingan menghasilkan ${hx(clamp(q.rr))}H`}
+  else if(op==='INC A'){let q=arithFlags(a,1,a+1,0,0);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C}=q);f.C=cin;text=`INC: ${hx(a)}H + 1 = ${hx(rr)}H; C tidak berubah`}
+  else if(op==='DEC A'){let q=arithFlags(a,1,a-1,1,0);({rr,S:f.S,Z:f.Z,H:f.H,PV:f.PV,N:f.N,C}=q);f.C=cin;text=`DEC: ${hx(a)}H - 1 = ${hx(rr)}H; C tidak berubah`}
+  else if(op==='AND n'){rr=a&n;f=logicFlags(rr,'AND');text=`${hx(a)}H AND ${hx(n)}H = ${hx(rr)}H`}
+  else if(op==='OR n'){rr=a|n;f=logicFlags(rr,'OR');text=`${hx(a)}H OR ${hx(n)}H = ${hx(rr)}H`}
+  else if(op==='XOR n'){rr=a^n;f=logicFlags(rr,'XOR');text=`${hx(a)}H XOR ${hx(n)}H = ${hx(rr)}H`}
+  else if(op==='SCF'){rr=a;f={S:(a>>7)&1,Z:a===0?1:0,H:0,PV:parity(a),N:0,C:1};text='SCF: Carry Flag diset menjadi 1; flag lain mengikuti aturan SCF'}
+  else if(op==='CCF'){rr=a;f={S:(a>>7)&1,Z:a===0?1:0,H:cin,N:0,PV:parity(a),C:cin?0:1};text=`CCF: C dibalik dari ${cin} menjadi ${cin?0:1}`}
+  let F=makeF(rr,f);
+  document.getElementById('ares').textContent=hx(rr);
+  document.getElementById('adec').textContent=rr;
+  document.getElementById('fhex').textContent=hx(F);
+  document.getElementById('fbin').textContent=F.toString(2).padStart(8,'0');
+  document.getElementById('result').innerHTML='<p><b>'+text+'</b></p>';
+  let labels=[['S',7],['Z',6],['5',5],['H',4],['3',3],['P/V',2],['N',1],['C',0]];
+  document.getElementById('bits').innerHTML=labels.map(([name,bit])=>{
+    let on=(F>>bit)&1; return `<div class="bit ${on?'on':''}"><b>${name}</b><small>bit ${bit}</small><strong>${on}</strong></div>`
+  }).join('');
+}
+simulate();
+</script>
+</body>
+</html>
