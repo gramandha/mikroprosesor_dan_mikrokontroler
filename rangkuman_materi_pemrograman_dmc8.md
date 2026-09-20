@@ -29,6 +29,8 @@ Setiap baris kode dalam bahasa assembly DMC8 umumnya terdiri dari 4 kolom (*fiel
 | **Operand** | Parameter atau data operasi untuk instruksi. |
 | **Comment** | Catatan/komentar (opsional), diawali dengan titik koma `;`. |
 
+![Gambar_2](2.png)
+
 #### Contoh Program Penjumlahan 8-bit:
 ```assembly
 SUM:  LD A, (0500h)   ; muat operand pertama
