@@ -10,6 +10,7 @@
 * **Interpreter:** Menerjemahkan kode sumber secara langsung baris demi baris saat eksekusi berlangsung.
 
 #### Alur Pemrograman:
+![Gambar_1](1.png)
 ```text
 Source Program → Translator (Compiler/Assembler) → Object Code → Linker → Programmer → ROM → Microprocessor-based System
 ```
